@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: transparent;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    user-select: none;
+    overflow-x: hidden;
+  }
+
+  .editor-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: rgba(30, 41, 59, 0.7);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    color: #F8FAFC;
+    font-size: 13px;
+  }
+  .editor-header.light-theme {
+    background: rgba(241, 245, 249, 0.9);
+    border: 1px solid #CBD5E1;
+    color: #0F172A;
+  }
+
+  .header-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+  }
+  .badge-count {
+    background: #2563EB;
+    color: #FFFFFF;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-apply {
+    background: #2563EB;
+    color: #FFFFFF;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .btn-apply:hover {
+    background: #1D4ED8;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+  }
+  .btn-apply:disabled {
+    background: #64748B;
+    cursor: not-allowed;
+    transform: none;
+    opacity: 0.6;
+    box-shadow: none;
+  }
+  .btn-reset {
+    background: transparent;
+    color: #94A3B8;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .btn-reset:hover {
+    color: #F8FAFC;
+    border-color: #94A3B8;
+  }
+  .light-theme .btn-reset:hover {
+    color: #0F172A;
+    border-color: #64748B;
+  }
+
+  .canvas-viewport {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+
+  #wrapper {
+    position: relative;
+    display: inline-block;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+    border-radius: 6px;
+    background: #ffffff;
+    width: 100%;
+    max-width: 950px;
+    overflow: hidden;
+  }
+  #bg-image {
+    display: block;
+    width: 100%;
+    height: auto;
+    pointer-events: none;
+  }
+
+  .overlay-box {
+    position: absolute;
+    cursor: text;
+    border: 1px dashed rgba(37, 99, 235, 0.25);
+    background: rgba(37, 99, 235, 0.02);
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+    border-radius: 2px;
+    z-index: 10;
+  }
+  .overlay-box:hover {
+    border: 1.5px solid #2563EB;
+    background: rgba(37, 99, 235, 0.10);
+    box-shadow: 0 0 8px rgba(37, 99, 235, 0.4);
+    z-index: 25;
+  }
+  .overlay-box.modified {
+    border: 1.5px solid #10B981;
+    background: rgba(16, 185, 129, 0.12);
+  }
+  .overlay-box.active {
+    border: 2px solid #2563EB;
+    background: #FFFFFF;
+    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.5);
+    z-index: 100;
+  }
+
+  .overlay-input {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #FFFFFF;
+    outline: none;
+    color: #0F172A;
+    padding: 0 2px;
+    margin: 0;
+    box-sizing: border-box;
+    display: none;
+    font-family: 'Carlito', 'Calibri', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1;
+  }
+  .overlay-box.active .overlay-input {
+    display: block;
+  }
+
+  .overlay-badge {
+    position: absolute;
+    top: -15px;
+    left: 0;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background: #10B981;
+    color: #FFFFFF;
+    padding: 1px 4px;
+    border-radius: 2px;
+    pointer-events: none;
+    display: none;
+    text-transform: uppercase;
+  }
+  .overlay-box.modified .overlay-badge {
+    display: block;
+  }
+</style>
+</head>
+<body>
+  <div id="editor-header" class="editor-header">
+    <div class="header-info">
+      <span>✏️ <strong>Direct Visual PDF Editor:</strong> Click any text directly on the document to edit in-place.</span>
+      <span id="badge-count" class="badge-count" style="display: none;">0 Modified</span>
+    </div>
+    <div class="header-actions">
+      <button id="btn-reset" class="btn-reset" style="display: none;">Discard Edits</button>
+      <button id="btn-apply" class="btn-apply" disabled>⚡ Apply & Preview on PDF</button>
+    </div>
+  </div>
+
+  <div class="canvas-viewport">
+    <div id="wrapper">
+      <img id="bg-image" src="" alt="Page Canvas" />
+      <div id="overlays-layer"></div>
+    </div>
+  </div>
+
+<script>
+  let currentArgs = null;
+  let modifiedValues = {};
+
+  function sendToStreamlit(type, data = {}) {
+    window.parent.postMessage({
+      isStreamlitMessage: true,
+      type: type,
+      ...data
+    }, "*");
+  }
+
+  function notifyHeight() {
+    const totalHeight = document.body.scrollHeight + 20;
+    sendToStreamlit("streamlit:setFrameHeight", { height: Math.max(totalHeight, 350) });
+  }
+
+  function updateHeaderState() {
+    const count = Object.keys(modifiedValues).length;
+    const badge = document.getElementById("badge-count");
+    const btnApply = document.getElementById("btn-apply");
+    const btnReset = document.getElementById("btn-reset");
+
+    if (count > 0) {
+      badge.style.display = "inline-block";
+      badge.innerText = count + (count === 1 ? " Edit Pending" : " Edits Pending");
+      btnApply.disabled = false;
+      btnApply.innerText = "⚡ Apply " + count + (count === 1 ? " Edit to PDF" : " Edits to PDF");
+      btnReset.style.display = "inline-block";
+    } else {
+      badge.style.display = "none";
+      btnApply.disabled = true;
+      btnApply.innerText = "⚡ Apply & Preview on PDF";
+      btnReset.style.display = "none";
+    }
+  }
+
+  function renderPage(args) {
+    currentArgs = args;
+    const { image_base64, blocks, page_width, page_height, theme_mode } = args;
+
+    const header = document.getElementById("editor-header");
+    if (theme_mode === "light") {
+      header.classList.add("light-theme");
+    } else {
+      header.classList.remove("light-theme");
+    }
+
+    const bg = document.getElementById("bg-image");
+    bg.src = "data:image/png;base64," + image_base64;
+
+    bg.onload = () => {
+      const layer = document.getElementById("overlays-layer");
+      layer.innerHTML = "";
+      modifiedValues = {};
+      updateHeaderState();
+
+      const imgWidth = bg.clientWidth;
+      const imgHeight = bg.clientHeight;
+      const scaleY = imgHeight / page_height;
+
+      blocks.forEach((blk) => {
+        const box = document.createElement("div");
+        box.className = "overlay-box";
+        box.id = "blk-" + blk.id;
+
+        const left = (blk.x0 / page_width) * 100;
+        const top = (blk.y0 / page_height) * 100;
+        const width = ((blk.x1 - blk.x0) / page_width) * 100;
+        const height = ((blk.y1 - blk.y0) / page_height) * 100;
+
+        box.style.left = left + "%";
+        box.style.top = top + "%";
+        box.style.width = Math.max(width, 2.5) + "%";
+        box.style.height = Math.max(height, 1.8) + "%";
+        box.title = `Click to edit: "${blk.text}" (${blk.font_display || ''})`;
+
+        const badge = document.createElement("div");
+        badge.className = "overlay-badge";
+        badge.innerText = "Edited";
+        box.appendChild(badge);
+
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "overlay-input";
+        input.value = blk.text;
+        
+        // Match font weight and scaled size
+        const isBold = (blk.font_name && blk.font_name.includes("bo")) || (blk.font_display && blk.font_display.includes("Bold"));
+        input.style.fontWeight = isBold ? "700" : "400";
+        input.style.fontSize = Math.max(10, Math.round(blk.font_size * scaleY * 0.92)) + "px";
+
+        box.appendChild(input);
+
+        box.addEventListener("click", (e) => {
+          if (!box.classList.contains("active")) {
+            box.classList.add("active");
+            input.focus();
+            input.select();
+          }
+        });
+
+        const commitInput = () => {
+          box.classList.remove("active");
+          const val = input.value.trim();
+          if (val !== blk.text) {
+            box.classList.add("modified");
+            modifiedValues[blk.id] = {
+              page: blk.page || 0,
+              type: "replace",
+              id: blk.id,
+              original_text: blk.text,
+              new_text: val,
+              rect: [blk.x0, blk.y0, blk.x1, blk.y1],
+              font_size: blk.font_size,
+              font_name: blk.font_name,
+              font_color: blk.font_color,
+              baseline_y: blk.baseline_y
+            };
+          } else {
+            box.classList.remove("modified");
+            delete modifiedValues[blk.id];
+          }
+          updateHeaderState();
+        };
+
+        input.addEventListener("blur", commitInput);
+
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            commitInput();
+          } else if (e.key === "Escape") {
+            input.value = blk.text;
+            box.classList.remove("active");
+            box.classList.remove("modified");
+            delete modifiedValues[blk.id];
+            updateHeaderState();
+          }
+        });
+
+        layer.appendChild(box);
+      });
+
+      notifyHeight();
+    };
+  }
+
+  // Header Actions
+  document.getElementById("btn-apply").addEventListener("click", () => {
+    const edits = Object.values(modifiedValues);
+    if (edits.length > 0) {
+      sendToStreamlit("streamlit:setComponentValue", {
+        value: {
+          action: "apply",
+          edits: edits,
+          timestamp: Date.now()
+        }
+      });
+    }
+  });
+
+  document.getElementById("btn-reset").addEventListener("click", () => {
+    if (confirm("Discard all pending visual edits on this page?")) {
+      modifiedValues = {};
+      const layer = document.getElementById("overlays-layer");
+      const modifiedBoxes = layer.querySelectorAll(".overlay-box.modified");
+      modifiedBoxes.forEach(b => {
+        b.classList.remove("modified");
+        b.classList.remove("active");
+        const inp = b.querySelector("input");
+        if (inp) {
+          const blkId = b.id.replace("blk-", "");
+          const origBlk = currentArgs.blocks.find(x => x.id === blkId);
+          if (origBlk) inp.value = origBlk.text;
+        }
+      });
+      updateHeaderState();
+    }
+  });
+
+  window.addEventListener("message", (e) => {
+    if (e.data.type === "streamlit:render") {
+      renderPage(e.data.args);
+    }
+  });
+
+  window.addEventListener("resize", notifyHeight);
+
+  sendToStreamlit("streamlit:componentReady", { apiVersion: 1 });
+</script>
+</body>
+</html>

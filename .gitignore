@@ -1,0 +1,24 @@
+# Virtual Environment
+venv/
+env/
+.env
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# App Data / Temporary uploads & edits
+data/uploads/*
+!data/uploads/.gitkeep
+data/edited_pdfs/*
+!data/edited_pdfs/.gitkeep
+data/*.db
+data/temp_*
+
+# Streamlit Local Cache
+.streamlit/secrets.toml
