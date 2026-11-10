@@ -1,7 +1,6 @@
 # Virtual Environment
 venv/
 env/
-.env
 
 # Python Cache
 __pycache__/
@@ -22,3 +21,5 @@ data/temp_*
 
 # Streamlit Local Cache
 .streamlit/secrets.toml
+config.bat
+node_modules
