@@ -16,19 +16,13 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 12px;
-    background: rgba(30, 41, 59, 0.7);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 8px 14px;
+    background: #F1F5F9;
+    border: 1px solid #CBD5E1;
     border-radius: 8px;
     margin-bottom: 12px;
-    color: #F8FAFC;
-    font-size: 13px;
-  }
-  .editor-header.light-theme {
-    background: rgba(241, 245, 249, 0.9);
-    border: 1px solid #CBD5E1;
     color: #0F172A;
+    font-size: 13px;
   }
 
   .header-info {
@@ -77,21 +71,19 @@
     box-shadow: none;
   }
   .btn-reset {
-    background: transparent;
-    color: #94A3B8;
-    border: 1px solid rgba(148, 163, 184, 0.3);
-    padding: 5px 10px;
+    background: #FFFFFF;
+    color: #475569;
+    border: 1px solid #CBD5E1;
+    padding: 5px 12px;
     border-radius: 6px;
     font-size: 12px;
     cursor: pointer;
+    font-weight: 500;
   }
   .btn-reset:hover {
-    color: #F8FAFC;
-    border-color: #94A3B8;
-  }
-  .light-theme .btn-reset:hover {
     color: #0F172A;
-    border-color: #64748B;
+    border-color: #94A3B8;
+    background: #F8FAFC;
   }
 
   .canvas-viewport {
@@ -133,8 +125,10 @@
     z-index: 25;
   }
   .overlay-box.modified {
-    border: 1.5px solid #10B981;
-    background: rgba(16, 185, 129, 0.12);
+    border: 1.5px solid #2563EB;
+    background: #FFFFFF;
+    box-shadow: 0 1px 4px rgba(37, 99, 235, 0.25);
+    z-index: 30;
   }
   .overlay-box.active {
     border: 2px solid #2563EB;
@@ -157,27 +151,42 @@
     font-family: 'Carlito', 'Calibri', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     line-height: 1;
   }
-  .overlay-box.active .overlay-input {
+  .overlay-box.active .overlay-input,
+  .overlay-box.modified .overlay-input {
     display: block;
+    background: #FFFFFF;
   }
 
   .overlay-badge {
-    position: absolute;
-    top: -15px;
-    left: 0;
-    font-size: 8px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    background: #10B981;
-    color: #FFFFFF;
-    padding: 1px 4px;
-    border-radius: 2px;
-    pointer-events: none;
-    display: none;
-    text-transform: uppercase;
+    display: none !important;
   }
-  .overlay-box.modified .overlay-badge {
-    display: block;
+
+  .btn-add-row {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    background: #2563EB;
+    color: #FFFFFF;
+    border-radius: 50%;
+    border: 2px solid #FFFFFF;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 60;
+    transition: transform 0.18s ease, background 0.18s ease;
+    user-select: none;
+    padding: 0;
+    transform: translateY(-50%);
+  }
+  .btn-add-row:hover {
+    background: #1D4ED8;
+    transform: translateY(-50%) scale(1.18);
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.65);
   }
 </style>
 </head>
@@ -273,24 +282,26 @@
 
         box.style.left = left + "%";
         box.style.top = top + "%";
-        box.style.width = Math.max(width, 2.5) + "%";
+        const baseWidth = Math.max(width, 2.5);
+        box.style.width = baseWidth + "%";
         box.style.height = Math.max(height, 1.8) + "%";
         box.title = `Click to edit: "${blk.text}" (${blk.font_display || ''})`;
-
-        const badge = document.createElement("div");
-        badge.className = "overlay-badge";
-        badge.innerText = "Edited";
-        box.appendChild(badge);
 
         const input = document.createElement("input");
         input.type = "text";
         input.className = "overlay-input";
         input.value = blk.text;
         
-        // Match font weight and scaled size
+        // Match font weight, scaled size, and color
         const isBold = (blk.font_name && blk.font_name.includes("bo")) || (blk.font_display && blk.font_display.includes("Bold"));
         input.style.fontWeight = isBold ? "700" : "400";
         input.style.fontSize = Math.max(10, Math.round(blk.font_size * scaleY * 0.92)) + "px";
+        if (blk.font_color && Array.isArray(blk.font_color) && blk.font_color.length === 3) {
+          const cr = Math.round(blk.font_color[0] * 255);
+          const cg = Math.round(blk.font_color[1] * 255);
+          const cb = Math.round(blk.font_color[2] * 255);
+          input.style.color = `rgb(${cr}, ${cg}, ${cb})`;
+        }
 
         box.appendChild(input);
 
@@ -302,11 +313,21 @@
           }
         });
 
+        input.addEventListener("focus", () => {
+          box.classList.add("active");
+        });
+
         const commitInput = () => {
           box.classList.remove("active");
           const val = input.value.trim();
           if (val !== blk.text) {
             box.classList.add("modified");
+            input.value = val;
+            if (val.length > blk.text.length) {
+              const charDiff = val.length - blk.text.length;
+              const estExtra = (charDiff * (blk.font_size * 0.55) / page_width) * 100;
+              box.style.width = Math.min(baseWidth + estExtra, 98) + "%";
+            }
             modifiedValues[blk.id] = {
               page: blk.page || 0,
               type: "replace",
@@ -321,6 +342,7 @@
             };
           } else {
             box.classList.remove("modified");
+            box.style.width = baseWidth + "%";
             delete modifiedValues[blk.id];
           }
           updateHeaderState();
@@ -331,16 +353,60 @@
         input.addEventListener("keydown", (e) => {
           if (e.key === "Enter") {
             commitInput();
+            input.blur();
           } else if (e.key === "Escape") {
             input.value = blk.text;
             box.classList.remove("active");
             box.classList.remove("modified");
+            box.style.width = baseWidth + "%";
             delete modifiedValues[blk.id];
             updateHeaderState();
+            input.blur();
           }
         });
 
         layer.appendChild(box);
+      });
+
+      // Render Add Row buttons on detected table end rows
+      const endRows = args.end_rows || [];
+      endRows.forEach((row, rIdx) => {
+        const btnAdd = document.createElement("button");
+        btnAdd.className = "btn-add-row";
+        btnAdd.id = "btn-add-row-" + rIdx;
+        btnAdd.title = "Add row below this table";
+        btnAdd.innerHTML = "+";
+
+        const targetY = row.btn_y !== undefined ? row.btn_y : (row.btn_y0 !== undefined ? row.btn_y0 + (row.delta_y || 22) / 2 : row.y0);
+        const rowTop = (targetY / page_height) * 100;
+        const rowLeft = Math.min(((row.x1 + 10) / page_width) * 100, 96.5);
+
+        btnAdd.style.top = rowTop + "%";
+        btnAdd.style.left = rowLeft + "%";
+
+        btnAdd.addEventListener("click", (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          btnAdd.style.pointerEvents = "none";
+          btnAdd.style.opacity = "0.75";
+          btnAdd.innerHTML = "⏳";
+
+          setTimeout(() => {
+            btnAdd.style.pointerEvents = "auto";
+            btnAdd.style.opacity = "1";
+            btnAdd.innerHTML = "+";
+          }, 3500);
+
+          sendToStreamlit("streamlit:setComponentValue", {
+            value: {
+              action: "add_row",
+              row_data: row,
+              timestamp: Date.now()
+            }
+          });
+        });
+
+        layer.appendChild(btnAdd);
       });
 
       notifyHeight();
